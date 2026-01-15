@@ -1,0 +1,19 @@
+{
+  "name": "guestlist_qrcode",
+  "version": "1.0.0",
+  "description": "Events APP, with ticketing system and QR verification",
+  "main": "server/server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dinisduarte220/guestlist_qrcode.git"
+  },
+  "author": "Dinis Duarte",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/dinisduarte220/guestlist_qrcode/issues"
+  },
+  "homepage": "https://github.com/dinisduarte220/guestlist_qrcode#readme"
+}
