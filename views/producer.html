@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event QR GuestList - Painel Administrativo</title>
+    <!-- Favicon -->
+    <link rel="shortcut icon" href="assets/IMG/favicon.ico" type="image/x-icon">
+    <!-- CSS Stylesheet -->
+    <link rel="stylesheet" href="style.css">
+    <!-- Icon Libraries -->
+    <script src="https://kit.fontawesome.com/207c253573.js" crossorigin="anonymous"></script>
+    <style>
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.05rem;
+            font-weight: 600;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: var(--transition);
+        }
+        .tab-btn.active {
+            color: var(--color-primary-hover);
+            border-bottom: 2px solid var(--color-primary-hover);
+        }
+        .tab-content {
+            display: none;
+            margin-top: 1.5rem;
+        }
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <!-- Top Navigation Bar -->
+    <header id="topbar">
+        <img id="logo" src="./assets/IMG/logo.png" alt="logo" onclick="window.location.href='/'">
+        <nav id="topbar-nav">
+            <a href="/"><i class="fa-solid fa-house"></i> Eventos</a>
+            <a href="/scanner" class="btn-secondary"><i class="fa-solid fa-qrcode"></i> Abrir Scanner</a>
+            <a href="#" id="btn-logout" class="btn-secondary" onclick="logout(event)"><i class="fa-solid fa-right-from-bracket"></i> Sair</a>
+        </nav>
+    </header>
+
+    <main id="content">
+        <div style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <div>
+                <h1 id="producer-greeting">Olá, Produtor!</h1>
+                <p class="subtitle" style="margin-bottom: 0;">Gere as tuas equipas, edita a bilhética e monitoriza o fluxo de entrada nos teus recintos.</p>
+            </div>
+            <div>
+                <button class="btn-primary" onclick="openModal('modal-create-event')"><i class="fa-solid fa-plus"></i> Novo Evento</button>
+            </div>
+        </div>
+
+        <!-- Global Stats Panel -->
+        <div class="analytics-grid">
+            <div class="analytics-card" style="border-left: 4px solid var(--color-primary);">
+                <div class="title">Receita Total Bilhética</div>
+                <div class="value" id="stat-revenue">0.00€</div>
+            </div>
+            <div class="analytics-card" style="border-left: 4px solid var(--color-secondary);">
+                <div class="title">Bilhetes Emitidos</div>
+                <div class="value" id="stat-tickets">0</div>
+            </div>
+            <div class="analytics-card" style="border-left: 4px solid var(--color-success);">
+                <div class="title">Check-ins Concluídos</div>
+                <div class="value" id="stat-checkins">0</div>
+            </div>
+            <div class="analytics-card" style="border-left: 4px solid var(--color-accent);">
+                <div class="title">Eventos Criados</div>
+                <div class="value" id="stat-events">0</div>
+            </div>
+        </div>
+
+        <!-- Tabbed Navigation -->
+        <div style="border-bottom: 1px solid var(--border-color); display: flex; gap: 1rem; margin-bottom: 1rem;">
+            <button class="tab-btn active" onclick="switchTab('tab-events', event)"><i class="fa-solid fa-calendar-days"></i> Eventos</button>
+            <button class="tab-btn" onclick="switchTab('tab-promoters', event)"><i class="fa-solid fa-users"></i> Promotores e Equipas</button>
+            <button class="tab-btn" onclick="switchTab('tab-blacklist', event)"><i class="fa-solid fa-user-slash"></i> Blacklist</button>
+        </div>
+
+        <!-- TAB 1: Events Manager -->
+        <div id="tab-events" class="tab-content active">
+            <div class="glass-panel">
+                <h3 style="margin-bottom: 1rem;">Lista de Eventos</h3>
+                <div class="table-container" style="margin-top: 0;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nome do Evento</th>
+                                <th>Data</th>
+                                <th>Local</th>
+                                <th>Preço</th>
+                                <th>Vendas / Entradas</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="events-tbody">
+                            <!-- Populated via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: Promoters and Teams Manager -->
+        <div id="tab-promoters" class="tab-content">
+            <div class="dashboard-split">
+                <!-- Left column: Promoter List and Team Creator -->
+                <div style="display: flex; flex-direction: column; gap: 2rem;">
+                    <!-- Create team -->
+                    <div class="glass-panel">
+                        <h3><i class="fa-solid fa-user-group" style="color: var(--color-primary); margin-right: 0.5rem;"></i> Criar Equipa RP</h3>
+                        <form id="form-create-team" onsubmit="handleCreateTeam(event)" style="margin-top: 1rem;">
+                            <div class="form-group">
+                                <label for="team-name">Nome da Equipa</label>
+                                <input type="text" id="team-name" class="input-field" style="padding-left: 1rem;" required placeholder="Ex: Team Lisbon">
+                            </div>
+                            <div class="form-group">
+                                <label for="team-leader-email">Email do Líder (Opcional)</label>
+                                <input type="email" id="team-leader-email" class="input-field" style="padding-left: 1rem;" placeholder="Ex: lider@email.com">
+                            </div>
+                            <button type="submit" class="btn-primary" style="width: 100%; justify-content: center;">Criar Equipa</button>
+                        </form>
+                    </div>
+
+                    <!-- Add promoter -->
+                    <div class="glass-panel">
+                        <h3><i class="fa-solid fa-user-plus" style="color: var(--color-secondary); margin-right: 0.5rem;"></i> Registar Promotor</h3>
+                        <form id="form-add-promoter" onsubmit="handleAddPromoter(event)" style="margin-top: 1rem;">
+                            <div class="form-group">
+                                <label for="promo-user-email">Email do Utilizador Registado</label>
+                                <input type="email" id="promo-user-email" class="input-field" style="padding-left: 1rem;" required placeholder="Ex: promotor@email.com">
+                            </div>
+                            <div class="form-group">
+                                <label for="promo-code-input">Código Único de Venda</label>
+                                <input type="text" id="promo-code-input" class="input-field" style="padding-left: 1rem; text-transform: uppercase;" required placeholder="Ex: LISBONPR">
+                            </div>
+                            <div class="form-group">
+                                <label for="select-promo-team">Associar a Equipa:</label>
+                                <select id="select-promo-team" class="select-field" style="width: 100%;">
+                                    <option value="">Sem Equipa (Individual)</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn-primary" style="width: 100%; justify-content: center;">Registar Promotor</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Right column: Standings & Team Sales -->
+                <div style="display: flex; flex-direction: column; gap: 2rem;">
+                    <div class="glass-panel">
+                        <h3><i class="fa-solid fa-trophy" style="color: var(--color-warning); margin-right: 0.5rem;"></i> Leaderboard de Promotores</h3>
+                        <div class="table-container" style="max-height: 250px; overflow-y: auto; margin-top: 1rem;">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Rank</th>
+                                        <th>Nome</th>
+                                        <th>Código</th>
+                                        <th>Vendas</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="leaderboard-tbody">
+                                    <!-- Populated via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel">
+                        <h3><i class="fa-solid fa-chart-bar" style="color: var(--color-accent); margin-right: 0.5rem;"></i> Desempenho por Equipa</h3>
+                        <div class="table-container" style="max-height: 200px; overflow-y: auto; margin-top: 1rem;">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Equipa</th>
+                                        <th>Promotores</th>
+                                        <th>Total Vendas</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="teams-tbody">
+                                    <!-- Populated via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: Blacklist (Banned Users) -->
+        <div id="tab-blacklist" class="tab-content">
+            <div class="dashboard-split" style="grid-template-columns: 1fr 2fr;">
+                <!-- Left: Ban form -->
+                <div class="glass-panel">
+                    <h3><i class="fa-solid fa-user-slash" style="color: var(--color-danger); margin-right: 0.5rem;"></i> Banir Utilizador</h3>
+                    <form id="form-ban-user" onsubmit="handleBanUser(event)" style="margin-top: 1rem;">
+                        <div class="form-group">
+                            <label for="ban-email">Email do Utilizador</label>
+                            <input type="email" id="ban-email" class="input-field" style="padding-left: 1rem;" required placeholder="Ex: banido@email.com">
+                        </div>
+                        <div class="form-group">
+                            <label for="ban-reason">Motivo da Expulsão</label>
+                            <textarea id="ban-reason" class="input-field" style="padding-left: 1rem; height: 80px; resize: none;" required placeholder="Ex: Tentativa de fraude de bilheteira ou desacatos."></textarea>
+                        </div>
+                        <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; background: var(--color-danger);">Bloquear Entrada</button>
+                    </form>
+                </div>
+
+                <!-- Right: Banned users list -->
+                <div class="glass-panel">
+                    <h3><i class="fa-solid fa-list-ul"></i> Utilizadores Bloqueados</h3>
+                    <div class="table-container" style="margin-top: 1rem;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>Email</th>
+                                    <th>Motivo</th>
+                                    <th>Data de Bloqueio</th>
+                                </tr>
+                            </thead>
+                            <tbody id="banned-tbody">
+                                <!-- Populated via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Create Event Modal -->
+    <div id="modal-create-event" class="modal-backdrop">
+        <div class="modal-window">
+            <div class="modal-header">
+                <h3>Criar Novo Evento</h3>
+                <button class="modal-close" onclick="closeModal('modal-create-event')">&times;</button>
+            </div>
+            <form id="form-create-event" onsubmit="handleCreateEvent(event)">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="evt-title">Título do Evento</label>
+                        <input type="text" id="evt-title" class="input-field" style="padding-left: 1rem;" required placeholder="Ex: Baile Funk Sunset">
+                    </div>
+                    <div class="form-group">
+                        <label for="evt-desc">Descrição do Evento</label>
+                        <textarea id="evt-desc" class="input-field" style="padding-left: 1rem; height: 60px; resize: none;" placeholder="Breve resumo da festa..."></textarea>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label for="evt-date">Data e Hora</label>
+                            <input type="datetime-local" id="evt-date" class="input-field" style="padding-left: 1rem;" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="evt-price">Preço (€)</label>
+                            <input type="number" id="evt-price" class="input-field" style="padding-left: 1rem;" min="0" step="0.5" required placeholder="0.00">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="evt-location">Localização / Recinto</label>
+                        <input type="text" id="evt-location" class="input-field" style="padding-left: 1rem;" required placeholder="Ex: Lux Club, Lisboa">
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label for="evt-style">Estilo Musical</label>
+                            <select id="evt-style" class="select-field" style="width: 100%;">
+                                <option value="Electronic">Electronic / EDM</option>
+                                <option value="Latino/Reggaeton">Latino / Reggaeton</option>
+                                <option value="Techno">Techno</option>
+                                <option value="General">Geral</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="evt-image">Design Banner</label>
+                            <select id="evt-image" class="select-field" style="width: 100%;">
+                                <option value="neon_glow">Neon Glow (Neon Purple)</option>
+                                <option value="summer_vibe">Summer Vibe (Orange Red)</option>
+                                <option value="techno_basement">Basement Sessions (Dark Slate)</option>
+                                <option value="default_event">Default Dark Purple</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group" style="display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem;">
+                        <input type="checkbox" id="evt-payments" style="width: 18px; height: 18px; cursor: pointer;">
+                        <label for="evt-payments" style="margin-bottom: 0; cursor: pointer;">Ativar Pagamentos Internos (Bar Cashless)</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="closeModal('modal-create-event')">Cancelar</button>
+                    <button type="submit" class="btn-primary">Criar Evento</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Create Guestlist Modal -->
+    <div id="modal-create-gl" class="modal-backdrop">
+        <div class="modal-window">
+            <div class="modal-header">
+                <h3>Criar GuestList</h3>
+                <button class="modal-close" onclick="closeModal('modal-create-gl')">&times;</button>
+            </div>
+            <form id="form-create-gl" onsubmit="handleCreateGL(event)">
+                <input type="hidden" id="gl-event-id">
+                <div class="modal-body">
+                    <div class="form-group" style="text-align: center;">
+                        <span style="font-size: 0.85rem; color: var(--text-muted);">EVENTO SELECIONADO:</span>
+                        <h4 id="gl-event-title-display" style="color: var(--color-primary-hover);">Event Title</h4>
+                    </div>
+                    <div class="form-group">
+                        <label for="gl-name">Nome da Lista</label>
+                        <input type="text" id="gl-name" class="input-field" style="padding-left: 1rem;" required placeholder="Ex: GuestList VIP">
+                    </div>
+                    <div class="form-group">
+                        <label for="gl-capacity">Capacidade Limite (Vagas)</label>
+                        <input type="number" id="gl-capacity" class="input-field" style="padding-left: 1rem;" min="1" placeholder="Sem limite (opcional)">
+                    </div>
+                    <div class="form-group">
+                        <label for="gl-conditions">Condições de Entrada</label>
+                        <textarea id="gl-conditions" class="input-field" style="padding-left: 1rem; height: 80px; resize: none;" placeholder="Ex: Livre para mulheres até às 01h, homens 10€ consumíveis."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="closeModal('modal-create-gl')">Cancelar</button>
+                    <button type="submit" class="btn-primary">Criar Lista</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="toast">
+        <span id="toast-icon"></span>
+        <span id="toast-message">Notification message</span>
+    </div>
+
+    <!-- Frontend Core Scripts -->
+    <script src="script.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            loadProducerDashboard();
+        });
+
+        // Tab routing
+        function switchTab(tabId, event) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tabId).classList.add('active');
+        }
+
+        // Global stats cache
+        let producerData = null;
+
+        async function loadProducerDashboard() {
+            try {
+                const res = await fetch('/api/producers/stats');
+                if (!res.ok) {
+                    if (res.status === 401) {
+                        window.location.href = '/login.html';
+                        return;
+                    }
+                    showToast('Erro ao carregar dados do dashboard.', 'error');
+                    return;
+                }
+
+                const data = await res.json();
+                producerData = data;
+
+                const user = JSON.parse(localStorage.getItem('user'));
+                if (user) {
+                    document.getElementById('producer-greeting').innerText = `Olá, ${user.name}!`;
+                }
+
+                // Render metrics
+                document.getElementById('stat-revenue').innerText = `${parseFloat(data.totals.revenue).toFixed(2)}€`;
+                document.getElementById('stat-tickets').innerText = data.totals.tickets_sold;
+                document.getElementById('stat-checkins').innerText = data.totals.checked_in;
+                document.getElementById('stat-events').innerText = data.totals.events_count;
+
+                // Render events table
+                const evTbody = document.getElementById('events-tbody');
+                evTbody.innerHTML = '';
+                if (data.events.length === 0) {
+                    evTbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Ainda não criaste nenhum evento.</td></tr>`;
+                } else {
+                    data.events.forEach(evt => {
+                        const dateStr = new Date(evt.date).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+                        evTbody.innerHTML += `
+                            <tr>
+                                <td style="font-weight:600; color:#fff;">${evt.title}</td>
+                                <td>${dateStr}</td>
+                                <td>${evt.location}</td>
+                                <td>${parseFloat(evt.ticket_price).toFixed(2)}€</td>
+                                <td>
+                                    <strong>Bilhetes:</strong> ${evt.tickets_checked_in}/${evt.tickets_sold}<br>
+                                    <strong>GuestLists:</strong> ${evt.gl_checked_in}/${evt.gl_entries}
+                                </td>
+                                <td>
+                                    <button class="btn-primary" style="padding:0.4rem 0.8rem; font-size:0.8rem;" onclick="openGLModal(${evt.id}, '${evt.title.replace(/'/g, "\\'")}')">
+                                        <i class="fa-solid fa-list"></i> Criar GuestList
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                }
+
+                // Render promoter teams selection dropdown
+                const teamSelect = document.getElementById('select-promo-team');
+                teamSelect.innerHTML = '<option value="">Sem Equipa (Individual)</option>';
+                data.teams.forEach(team => {
+                    teamSelect.innerHTML += `<option value="${team.id}">${team.name}</option>`;
+                });
+
+                // Render leaderboard table
+                const lbTbody = document.getElementById('leaderboard-tbody');
+                lbTbody.innerHTML = '';
+                if (data.promoters.length === 0) {
+                    lbTbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Nenhum promotor registado.</td></tr>`;
+                } else {
+                    data.promoters.forEach((pr, index) => {
+                        lbTbody.innerHTML += `
+                            <tr>
+                                <td style="font-weight:700; color:${index === 0 ? 'var(--color-warning)' : 'var(--text-main)'}">#${index + 1}</td>
+                                <td style="color:#fff; font-weight:600;">${pr.promoter_name}</td>
+                                <td style="font-family:monospace;">${pr.promo_code}</td>
+                                <td style="color:var(--color-primary-hover); font-weight:700;">${pr.total_sales}</td>
+                            </tr>
+                        `;
+                    });
+                }
+
+                // Render teams performance table
+                const teamsTbody = document.getElementById('teams-tbody');
+                teamsTbody.innerHTML = '';
+                if (data.teams.length === 0) {
+                    teamsTbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--text-muted);">Nenhuma equipa criada.</td></tr>`;
+                } else {
+                    data.teams.forEach(team => {
+                        teamsTbody.innerHTML += `
+                            <tr>
+                                <td style="color:#fff; font-weight:600;">${team.name}</td>
+                                <td>${team.members_count}</td>
+                                <td style="color:var(--color-accent); font-weight:700;">${team.team_sales}</td>
+                            </tr>
+                        `;
+                    });
+                }
+
+                // Render blacklisted users table
+                const banTbody = document.getElementById('banned-tbody');
+                banTbody.innerHTML = '';
+                if (data.banned.length === 0) {
+                    banTbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Não há utilizadores banidos.</td></tr>`;
+                } else {
+                    data.banned.forEach(b => {
+                        const bannedAt = new Date(b.created_at).toLocaleDateString('pt-PT');
+                        banTbody.innerHTML += `
+                            <tr>
+                                <td style="color:#fff; font-weight:600;">${b.name}</td>
+                                <td>${b.email}</td>
+                                <td>${b.reason}</td>
+                                <td>${bannedAt}</td>
+                            </tr>
+                        `;
+                    });
+                }
+
+            } catch (err) {
+                console.error(err);
+                showToast('Erro de rede ao ligar ao painel administrativo.', 'error');
+            }
+        }
+
+        async function handleCreateEvent(e) {
+            e.preventDefault();
+            const title = document.getElementById('evt-title').value;
+            const description = document.getElementById('evt-desc').value;
+            const date = document.getElementById('evt-date').value;
+            const ticket_price = parseFloat(document.getElementById('evt-price').value);
+            const location = document.getElementById('evt-location').value;
+            const event_style = document.getElementById('evt-style').value;
+            const image_url = document.getElementById('evt-image').value;
+            const enabled_in_event_payments = document.getElementById('evt-payments').checked;
+
+            try {
+                const res = await fetch('/api/events', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        title, description, date, ticket_price, location, event_style, image_url, enabled_in_event_payments
+                    })
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    showToast(data.error || 'Erro ao criar evento.', 'error');
+                } else {
+                    showToast('Evento criado com sucesso!', 'success');
+                    closeModal('modal-create-event');
+                    document.getElementById('form-create-event').reset();
+                    loadProducerDashboard();
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('Erro de ligação ao servidor.', 'error');
+            }
+        }
+
+        function openGLModal(eventId, eventTitle) {
+            document.getElementById('gl-event-id').value = eventId;
+            document.getElementById('gl-event-title-display').innerText = eventTitle;
+            openModal('modal-create-gl');
+        }
+
+        async function handleCreateGL(e) {
+            e.preventDefault();
+            const eventId = document.getElementById('gl-event-id').value;
+            const name = document.getElementById('gl-name').value;
+            const maxCapacity = document.getElementById('gl-capacity').value;
+            const conditions = document.getElementById('gl-conditions').value;
+
+            try {
+                const res = await fetch('/api/producers/guestlists', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ eventId, name, maxCapacity, conditions })
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    showToast(data.error || 'Erro ao criar GuestList.', 'error');
+                } else {
+                    showToast('GuestList criada com sucesso!', 'success');
+                    closeModal('modal-create-gl');
+                    document.getElementById('form-create-gl').reset();
+                    loadProducerDashboard();
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('Erro de ligação ao servidor.', 'error');
+            }
+        }
+
+        async function handleCreateTeam(e) {
+            e.preventDefault();
+            const name = document.getElementById('team-name').value;
+            const leaderEmail = document.getElementById('team-leader-email').value;
+
+            try {
+                const res = await fetch('/api/producers/teams', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, leaderEmail })
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    showToast(data.error || 'Erro ao criar equipa.', 'error');
+                } else {
+                    showToast('Equipa de Promotores criada!', 'success');
+                    document.getElementById('form-create-team').reset();
+                    loadProducerDashboard();
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('Erro de ligação.', 'error');
+            }
+        }
+
+        async function handleAddPromoter(e) {
+            e.preventDefault();
+            const email = document.getElementById('promo-user-email').value;
+            const promoCode = document.getElementById('promo-code-input').value;
+            const teamId = document.getElementById('select-promo-team').value;
+
+            try {
+                const res = await fetch('/api/producers/promoters', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, promoCode, teamId })
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    showToast(data.error || 'Erro ao associar promotor.', 'error');
+                } else {
+                    showToast('Promotor registado com sucesso!', 'success');
+                    document.getElementById('form-add-promoter').reset();
+                    loadProducerDashboard();
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('Erro de ligação.', 'error');
+            }
+        }
+
+        async function handleBanUser(e) {
+            e.preventDefault();
+            const email = document.getElementById('ban-email').value;
+            const reason = document.getElementById('ban-reason').value;
+
+            if (!confirm(`Tens a certeza que pretendes banir o utilizador com o email: ${email}? A entrada dele será bloqueada nos teus eventos.`)) {
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/producers/ban', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, reason })
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    showToast(data.error || 'Erro ao banir utilizador.', 'error');
+                } else {
+                    showToast('Utilizador banido com sucesso!', 'success');
+                    document.getElementById('form-ban-user').reset();
+                    loadProducerDashboard();
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('Erro de ligação.', 'error');
+            }
+        }
+    </script>
+</body>
+</html>

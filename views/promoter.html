@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event QR GuestList - Painel de Promotor</title>
+    <!-- Favicon -->
+    <link rel="shortcut icon" href="assets/IMG/favicon.ico" type="image/x-icon">
+    <!-- CSS Stylesheet -->
+    <link rel="stylesheet" href="style.css">
+    <!-- Icon Libraries -->
+    <script src="https://kit.fontawesome.com/207c253573.js" crossorigin="anonymous"></script>
+</head>
+<body>
+    <!-- Top Navigation Bar -->
+    <header id="topbar">
+        <img id="logo" src="./assets/IMG/logo.png" alt="logo" onclick="window.location.href='/'">
+        <nav id="topbar-nav">
+            <a href="/"><i class="fa-solid fa-house"></i> Eventos</a>
+            <a href="#" id="btn-logout" class="btn-secondary" onclick="logout(event)"><i class="fa-solid fa-right-from-bracket"></i> Sair</a>
+        </nav>
+    </header>
+
+    <main id="content">
+        <div style="margin-bottom: 2rem;">
+            <h1 id="promoter-greeting">Olá, Promotor!</h1>
+            <p class="subtitle" style="margin-bottom: 0;">Consulta o teu desempenho de vendas, gera links de partilha e acompanha as tuas comissões.</p>
+        </div>
+
+        <!-- Analytics Grid -->
+        <div class="analytics-grid">
+            <div class="analytics-card" style="border-left: 4px solid var(--color-primary);">
+                <div class="title">Código de Promoção</div>
+                <div class="value" id="promo-code-val" style="color: var(--color-primary-hover); font-size: 2.2rem; font-family: monospace;">-</div>
+            </div>
+            <div class="analytics-card" style="border-left: 4px solid var(--color-secondary);">
+                <div class="title">Bilhetes Vendidos</div>
+                <div class="value" id="total-sales-val">0</div>
+            </div>
+            <div class="analytics-card" style="border-left: 4px solid var(--color-success);">
+                <div class="title">Comissões Acumuladas (10%)</div>
+                <div class="value" id="earnings-val">0.00€</div>
+            </div>
+            <div class="analytics-card" style="border-left: 4px solid var(--color-accent);">
+                <div class="title">Equipa RP</div>
+                <div class="value" id="team-name-val">-</div>
+            </div>
+        </div>
+
+        <div class="dashboard-split" style="grid-template-columns: 1fr 1fr;">
+            <!-- Left Side: Links Generator -->
+            <div class="glass-panel">
+                <h3 style="margin-bottom: 1rem;"><i class="fa-solid fa-link" style="color: var(--color-primary);"></i> Gerador de Links de Venda</h3>
+                <p class="subtitle" style="font-size:0.85rem; margin-bottom: 1.5rem;">Cria links personalizados para enviares aos teus clientes. Qualquer compra feita através do teu link será associada ao teu perfil.</p>
+                
+                <div class="form-group">
+                    <label for="select-event-link">1. Seleciona o Evento:</label>
+                    <select id="select-event-link" class="select-field" style="width: 100%;">
+                        <option value="">A carregar eventos...</option>
+                    </select>
+                </div>
+
+                <div class="form-group" style="margin-top: 1.5rem;">
+                    <label>2. O teu Link de Referência:</label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="text" id="referral-link-output" class="input-field" style="padding-left: 1rem; font-family: monospace; font-size: 0.85rem;" readonly>
+                        <button class="btn-primary" style="white-space: nowrap;" onclick="copyReferralLink()"><i class="fa-regular fa-copy"></i> Copiar</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Referrals List -->
+            <div class="glass-panel">
+                <h3 style="margin-bottom: 1rem;"><i class="fa-solid fa-chart-line-up" style="color: var(--color-secondary);"></i> Vendas Recentes</h3>
+                
+                <div class="table-container" style="max-height: 250px; overflow-y: auto; margin-top: 0;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Cliente</th>
+                                <th>Evento</th>
+                                <th>Comissão</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sales-tbody">
+                            <!-- Populated via JS -->
+                            <tr>
+                                <td colspan="3" style="text-align: center; color: var(--text-muted);">A carregar histórico...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="toast">
+        <span id="toast-icon"></span>
+        <span id="toast-message">Notification message</span>
+    </div>
+
+    <!-- Frontend Core Scripts -->
+    <script src="script.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            loadPromoterDashboard();
+            loadEventsForLink();
+        });
+
+        async function loadPromoterDashboard() {
+            try {
+                const res = await fetch('/api/promoters/stats');
+                if (!res.ok) {
+                    if (res.status === 401) {
+                        window.location.href = '/login.html';
+                        return;
+                    }
+                    showToast('Erro ao carregar dados do promotor.', 'error');
+                    return;
+                }
+
+                const data = await res.json();
+                
+                const user = JSON.parse(localStorage.getItem('user'));
+                if (user) {
+                    document.getElementById('promoter-greeting').innerText = `Olá, ${user.name}!`;
+                }
+
+                document.getElementById('promo-code-val').innerText = data.promo_code;
+                document.getElementById('total-sales-val').innerText = data.total_sales || 0;
+                document.getElementById('earnings-val').innerText = `${parseFloat(data.earnings).toFixed(2)}€`;
+                document.getElementById('team-name-val').innerText = data.team_name || 'Individual';
+
+                // Render Sales table
+                const tbody = document.getElementById('sales-tbody');
+                tbody.innerHTML = '';
+
+                if (data.sales.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--text-muted);">Não registaste vendas ainda.</td></tr>`;
+                } else {
+                    data.sales.forEach(sale => {
+                        const commission = (parseFloat(sale.ticket_price) * 0.10).toFixed(2);
+                        tbody.innerHTML += `
+                            <tr>
+                                <td>${sale.client_name}</td>
+                                <td>${sale.event_title}</td>
+                                <td style="color: var(--color-success); font-weight:700;">+${commission}€</td>
+                            </tr>
+                        `;
+                    });
+                }
+
+            } catch (err) {
+                console.error(err);
+                showToast('Erro de rede ao carregar painel do promotor.', 'error');
+            }
+        }
+
+        async function loadEventsForLink() {
+            try {
+                const res = await fetch('/api/events');
+                if (!res.ok) throw new Error();
+                const events = await res.json();
+
+                const select = document.getElementById('select-event-link');
+                select.innerHTML = '<option value="">-- Escolhe um Evento --</option>';
+
+                events.forEach(evt => {
+                    select.innerHTML += `<option value="${evt.id}">${evt.title} (${evt.location})</option>`;
+                });
+
+                select.addEventListener('change', updateReferralLink);
+
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function updateReferralLink() {
+            const eventId = document.getElementById('select-event-link').value;
+            const promoCode = document.getElementById('promo-code-val').innerText;
+            const output = document.getElementById('referral-link-output');
+
+            if (!eventId || promoCode === '-') {
+                output.value = '';
+                return;
+            }
+
+            // Build dynamic checkout/promo link
+            const url = `${window.location.origin}/index.html?event=${eventId}&promo=${promoCode}`;
+            output.value = url;
+        }
+
+        function copyReferralLink() {
+            const input = document.getElementById('referral-link-output');
+            if (!input.value) {
+                showToast('Seleciona primeiro um evento para gerar o link.', 'error');
+                return;
+            }
+
+            input.select();
+            input.setSelectionRange(0, 99999);
+            navigator.clipboard.writeText(input.value);
+            showToast('Link copiado para a área de transferência!', 'success');
+        }
+    </script>
+</body>
+</html>

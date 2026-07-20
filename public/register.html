@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event QR GuestList - Registar Conta</title>
+    <!-- Favicon -->
+    <link rel="shortcut icon" href="assets/IMG/favicon.ico" type="image/x-icon">
+    <!-- CSS Stylesheet -->
+    <link rel="stylesheet" href="style.css">
+    <!-- Icon Libraries -->
+    <script src="https://kit.fontawesome.com/207c253573.js" crossorigin="anonymous"></script>
+</head>
+<body>
+    <!-- Top Navigation Bar -->
+    <header id="topbar">
+        <img id="logo" src="./assets/IMG/logo.png" alt="logo" onclick="window.location.href='/'">
+        <nav id="topbar-nav">
+            <a href="/"><i class="fa-solid fa-house"></i> Voltar à Home</a>
+        </nav>
+    </header>
+
+    <main id="content">
+        <div class="auth-container">
+            <div class="glass-panel">
+                <div class="auth-header">
+                    <h1>Criar Conta</h1>
+                    <p class="subtitle" style="margin-bottom: 0;">Regista-te para poderes aderir a listas e comprar bilhetes.</p>
+                </div>
+                
+                <form id="form-register" onsubmit="handleRegister(event)">
+                    <div class="form-group">
+                        <label for="reg-name">Nome Completo</label>
+                        <div class="search-input-wrapper" style="margin-bottom: 0;">
+                            <i class="fa-solid fa-user" style="left: 1.2rem;"></i>
+                            <input type="text" id="reg-name" class="input-field" required placeholder="Ex: João Silva">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="reg-email">Endereço de Email</label>
+                        <div class="search-input-wrapper" style="margin-bottom: 0;">
+                            <i class="fa-solid fa-envelope" style="left: 1.2rem;"></i>
+                            <input type="email" id="reg-email" class="input-field" required placeholder="Ex: joao@email.com">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="reg-password">Palavra-passe</label>
+                        <div class="search-input-wrapper" style="margin-bottom: 0;">
+                            <i class="fa-solid fa-lock" style="left: 1.2rem;"></i>
+                            <input type="password" id="reg-password" class="input-field" required placeholder="Min. 6 caracteres">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="reg-role">Tipo de Utilizador (Função)</label>
+                        <select id="reg-role" class="select-field" style="width: 100%; padding-left: 1rem;">
+                            <option value="client">Cliente (Público de Eventos)</option>
+                            <option value="promoter">Promotor / Relações Públicas</option>
+                            <option value="producer">Produtor / Organização de Eventos</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 1.5rem; padding: 0.8rem;">
+                        <i class="fa-solid fa-user-plus"></i> Registar Conta
+                    </button>
+                </form>
+                
+                <div style="text-align: center; margin-top: 1.5rem; font-size: 0.9rem; color: var(--text-muted);">
+                    Já tens uma conta? <a href="/login.html" class="auth-toggle-link">Inicia sessão aqui</a>.
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="toast">
+        <span id="toast-icon"></span>
+        <span id="toast-message">Notification message</span>
+    </div>
+
+    <!-- Frontend Core Scripts -->
+    <script src="script.js"></script>
+    <script>
+        async function handleRegister(e) {
+            e.preventDefault();
+            const name = document.getElementById('reg-name').value;
+            const email = document.getElementById('reg-email').value;
+            const password = document.getElementById('reg-password').value;
+            const role = document.getElementById('reg-role').value;
+
+            if (password.length < 6) {
+                showToast('A palavra-passe deve ter pelo menos 6 caracteres.', 'error');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email, password, role })
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    showToast(data.error || 'Erro ao registar conta', 'error');
+                } else {
+                    showToast('Registo efetuado com sucesso! Redirecionando...', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/login.html';
+                    }, 1200);
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('Erro de ligação ao servidor.', 'error');
+            }
+        }
+    </script>
+</body>
+</html>

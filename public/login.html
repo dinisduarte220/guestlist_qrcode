@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event QR GuestList - Iniciar Sessão</title>
+    <!-- Favicon -->
+    <link rel="shortcut icon" href="assets/IMG/favicon.ico" type="image/x-icon">
+    <!-- CSS Stylesheet -->
+    <link rel="stylesheet" href="style.css">
+    <!-- Icon Libraries -->
+    <script src="https://kit.fontawesome.com/207c253573.js" crossorigin="anonymous"></script>
+</head>
+<body>
+    <!-- Top Navigation Bar -->
+    <header id="topbar">
+        <img id="logo" src="./assets/IMG/logo.png" alt="logo" onclick="window.location.href='/'">
+        <nav id="topbar-nav">
+            <a href="/"><i class="fa-solid fa-house"></i> Voltar à Home</a>
+        </nav>
+    </header>
+
+    <main id="content">
+        <div class="auth-container">
+            <div class="glass-panel">
+                <div class="auth-header">
+                    <h1>Entrar</h1>
+                    <p class="subtitle" style="margin-bottom: 0;">Inicia sessão para acederes aos teus bilhetes e dashboards.</p>
+                </div>
+                
+                <form id="form-login" onsubmit="handleLogin(event)">
+                    <div class="form-group">
+                        <label for="login-email">Endereço de Email</label>
+                        <div class="search-input-wrapper" style="margin-bottom: 0;">
+                            <i class="fa-solid fa-envelope" style="left: 1.2rem;"></i>
+                            <input type="email" id="login-email" class="input-field" required placeholder="Ex: joao@email.com">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="login-password">Palavra-passe</label>
+                        <div class="search-input-wrapper" style="margin-bottom: 0;">
+                            <i class="fa-solid fa-lock" style="left: 1.2rem;"></i>
+                            <input type="password" id="login-password" class="input-field" required placeholder="••••••••">
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 1.5rem; padding: 0.8rem;">
+                        <i class="fa-solid fa-right-to-bracket"></i> Iniciar Sessão
+                    </button>
+                </form>
+                
+                <div style="text-align: center; margin-top: 1.5rem; font-size: 0.9rem; color: var(--text-muted);">
+                    Não tens uma conta? <a href="/register.html" class="auth-toggle-link">Regista-te aqui</a>.
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="toast">
+        <span id="toast-icon"></span>
+        <span id="toast-message">Notification message</span>
+    </div>
+
+    <!-- Frontend Core Scripts -->
+    <script src="script.js"></script>
+    <script>
+        async function handleLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+
+            try {
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    showToast(data.error || 'Erro ao iniciar sessão', 'error');
+                } else {
+                    showToast('Sessão iniciada com sucesso!', 'success');
+                    // Store details
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    
+                    // Redirect based on role
+                    setTimeout(() => {
+                        if (data.user.role === 'producer') {
+                            window.location.href = '/dashboard';
+                        } else if (data.user.role === 'promoter') {
+                            window.location.href = '/promoter';
+                        } else if (data.user.role === 'staff') {
+                            window.location.href = '/scanner';
+                        } else {
+                            window.location.href = '/my-area';
+                        }
+                    }, 800);
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('Erro de ligação ao servidor.', 'error');
+            }
+        }
+    </script>
+</body>
+</html>

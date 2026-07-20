@@ -12,4 +12,4 @@
 * Event promotion
 * In APP Wallet for payments at event venues, including bars, clothing, etc
 
-*Since this is not going to be an real app (for now), all the things related to money will be fictitious!*
+*Since this is not going to be an real app (for now), money will be fictitious!*

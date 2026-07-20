@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event QR GuestList - Descobrir Eventos</title>
+    <!-- Favicon -->
+    <link rel="shortcut icon" href="assets/IMG/favicon.ico" type="image/x-icon">
+    <!-- CSS Stylesheet -->
+    <link rel="stylesheet" href="style.css">
+    <!-- Icon Libraries -->
+    <script src="https://kit.fontawesome.com/207c253573.js" crossorigin="anonymous"></script>
+</head>
+<body>
+    <!-- Top Navigation Bar -->
+    <header id="topbar">
+        <img id="logo" src="./assets/IMG/logo.png" alt="logo" onclick="window.location.href='/'">
+        <nav id="topbar-nav">
+            <!-- Nav buttons populated dynamically via JS -->
+            <a href="/login.html" id="btn-login-nav"><i class="fa-solid fa-right-to-bracket"></i> Login</a>
+            <a href="/register.html" id="btn-register-nav" class="btn-primary"><i class="fa-solid fa-user-plus"></i> Registar</a>
+        </nav>
+    </header>
+
+    <!-- Main Page Content -->
+    <main id="content">
+        <div class="glass-panel" style="margin-bottom: 2rem; padding: 1.5rem;">
+            <h1>Eventos em Destaque</h1>
+            <p class="subtitle" style="margin-bottom: 1rem;">Descobre as melhores noites, adere a GuestLists exclusivas e adquire os teus ingressos digitais de forma segura.</p>
+            
+            <!-- Search & Filters Panel -->
+            <div id="searchField">
+                <div class="search-input-wrapper">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="input-search" class="input-field" placeholder="Procurar por nome do evento, localidade...">
+                </div>
+                
+                <select id="select-style" class="select-field">
+                    <option value="">Estilo de Música (Todos)</option>
+                    <option value="Electronic">Electronic / EDM</option>
+                    <option value="Latino/Reggaeton">Latino / Reggaeton</option>
+                    <option value="Techno">Techno</option>
+                    <option value="General">Geral</option>
+                </select>
+
+                <input type="date" id="input-date" class="input-field" style="width: auto; padding-left: 1rem;">
+                
+                <button id="btn-clear-filters" class="btn-secondary" style="height: 100%;"><i class="fa-solid fa-filter-circle-xmark"></i> Limpar</button>
+            </div>
+        </div>
+
+        <!-- Dynamic Events Grid -->
+        <div id="eventsgrid">
+            <!-- Populated dynamically via JS -->
+            <div style="text-align: center; grid-column: 1 / -1; padding: 3rem;">
+                <i class="fa-solid fa-circle-notch fa-spin" style="font-size: 2rem; color: var(--color-primary);"></i>
+                <p style="margin-top: 1rem; color: var(--text-muted);">A carregar eventos...</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Buy Ticket Modal -->
+    <div id="modal-buy-ticket" class="modal-backdrop">
+        <div class="modal-window">
+            <div class="modal-header">
+                <h3>Adquirir Ingresso</h3>
+                <button class="modal-close" onclick="closeModal('modal-buy-ticket')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group" style="text-align: center; margin-bottom: 1.5rem;">
+                    <h2 id="modal-event-title" style="color: #fff; font-size: 1.5rem;">Event Title</h2>
+                    <p id="modal-event-location" style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0.2rem;"><i class="fa-solid fa-location-dot"></i> Location</p>
+                </div>
+                <div class="form-group">
+                    <label for="buy-promo-code">Código de Promotor (Opcional)</label>
+                    <input type="text" id="buy-promo-code" class="input-field" style="padding-left: 1rem; text-transform: uppercase;" placeholder="Ex: LISBONPR">
+                    <p style="font-size: 0.8rem; color: var(--color-primary-hover); margin-top: 0.3rem;">Insere o código do teu promotor para validar a entrada dele.</p>
+                </div>
+                <div class="glass-panel" style="padding: 1rem; margin-top: 1.5rem; background: rgba(255, 255, 255, 0.02);">
+                    <div style="display: flex; justify-content: space-between; font-weight: 600;">
+                        <span>Preço do Bilhete:</span>
+                        <span id="modal-event-price" style="color: #fff;">0.00€</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('modal-buy-ticket')">Cancelar</button>
+                <button id="btn-confirm-purchase" class="btn-primary"><i class="fa-solid fa-wallet"></i> Pagar com Carteira</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Join Guestlist Modal -->
+    <div id="modal-join-gl" class="modal-backdrop">
+        <div class="modal-window">
+            <div class="modal-header">
+                <h3>Aderir à GuestList</h3>
+                <button class="modal-close" onclick="closeModal('modal-join-gl')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group" style="text-align: center; margin-bottom: 1.5rem;">
+                    <h2 id="modal-gl-event-title" style="color: #fff; font-size: 1.5rem;">Event Title</h2>
+                    <p id="modal-gl-name" style="color: var(--color-primary-hover); font-size: 1.1rem; font-weight: 600; margin-top: 0.3rem;">GuestList VIP</p>
+                </div>
+                
+                <div class="form-group">
+                    <label>Condições de Entrada</label>
+                    <div id="modal-gl-conditions" class="glass-panel" style="padding: 1rem; font-size: 0.9rem; color: var(--text-muted); background: rgba(0,0,0,0.2);">
+                        Conditions details
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('modal-join-gl')">Cancelar</button>
+                <button id="btn-confirm-gl" class="btn-primary"><i class="fa-solid fa-user-check"></i> Confirmar Nome</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="toast">
+        <span id="toast-icon"></span>
+        <span id="toast-message">Notification message</span>
+    </div>
+
+    <!-- Frontend Core Scripts -->
+    <script src="script.js"></script>
+</body>
+</html>

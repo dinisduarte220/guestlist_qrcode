@@ -4,6 +4,8 @@
   "description": "Events APP, with ticketing system and QR verification",
   "main": "server/server.js",
   "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -15,5 +17,15 @@
   "bugs": {
     "url": "https://github.com/dinisduarte220/guestlist_qrcode/issues"
   },
-  "homepage": "https://github.com/dinisduarte220/guestlist_qrcode#readme"
+  "homepage": "https://github.com/dinisduarte220/guestlist_qrcode#readme",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "path": "^0.12.7",
+    "pg": "^8.17.2",
+    "qrcode": "^1.5.4"
+  }
 }

@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event QR GuestList - Scanner Portaria</title>
+    <!-- Favicon -->
+    <link rel="shortcut icon" href="assets/IMG/favicon.ico" type="image/x-icon">
+    <!-- CSS Stylesheet -->
+    <link rel="stylesheet" href="style.css">
+    <!-- Icon Libraries -->
+    <script src="https://kit.fontawesome.com/207c253573.js" crossorigin="anonymous"></script>
+    <!-- HTML5 QR Code Scanner Library from CDN -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+</head>
+<body>
+    <!-- Top Navigation Bar -->
+    <header id="topbar">
+        <img id="logo" src="./assets/IMG/logo.png" alt="logo" onclick="window.location.href='/'">
+        <nav id="topbar-nav">
+            <a href="/"><i class="fa-solid fa-house"></i> Eventos</a>
+            <a href="#" id="btn-logout" class="btn-secondary" onclick="logout(event)"><i class="fa-solid fa-right-from-bracket"></i> Sair</a>
+        </nav>
+    </header>
+
+    <main id="content">
+        <div style="margin-bottom: 2rem; text-align: center;">
+            <h1>Scanner de Portaria</h1>
+            <p class="subtitle" style="margin-bottom: 0;">Aponte a câmara para o QR Code do bilhete ou guestlist do cliente para validar a entrada instantaneamente.</p>
+        </div>
+
+        <div id="scanner-container" class="glass-panel" style="max-width: 500px; margin: 0 auto 2rem auto;">
+            <!-- Camera Scanning Viewport -->
+            <div id="reader" style="width: 100%;"></div>
+            
+            <div style="text-align: center; margin-top: 1.5rem; color: var(--text-muted); font-size: 0.9rem;">
+                -- OU INTRODUZA O CÓDIGO MANUALMENTE --
+            </div>
+            
+            <!-- Manual Input Fallback -->
+            <form id="form-manual-verify" onsubmit="handleManualVerify(event)" style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+                <input type="text" id="manual-code" class="input-field" style="padding-left: 1rem; text-transform: uppercase;" required placeholder="Ex: TK-1-1-XXXXXX">
+                <button type="submit" class="btn-primary" style="white-space: nowrap;"><i class="fa-solid fa-check"></i> Validar</button>
+            </form>
+        </div>
+
+        <!-- Scanning Feedback Visual Panels -->
+        <div id="scanner-result" class="glass-panel" style="max-width: 500px; margin: 0 auto; display: none;">
+            <div id="result-icon-container" style="font-size: 3rem; margin-bottom: 1rem;">
+                <i class="fa-solid fa-circle-check"></i>
+            </div>
+            <h2 id="result-status-title" style="margin-bottom: 0.5rem;">STATUS TITLE</h2>
+            <p id="result-status-msg" style="font-size: 1.1rem; font-weight: 500; color: #fff; margin-bottom: 1rem;">Status message</p>
+            
+            <div id="result-details" style="text-align: left; padding: 1rem; border-radius: 8px; background: rgba(0,0,0,0.25); font-size: 0.95rem; color: var(--text-muted);">
+                <!-- Dynamic check-in details loaded here -->
+            </div>
+            
+            <button class="btn-secondary" style="width: 100%; margin-top: 1.5rem; justify-content: center;" onclick="resetScannerResult()">
+                <i class="fa-solid fa-camera"></i> Voltar a Digitalizar
+            </button>
+        </div>
+    </main>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="toast">
+        <span id="toast-icon"></span>
+        <span id="toast-message">Notification message</span>
+    </div>
+
+    <!-- Frontend Core Scripts -->
+    <script src="script.js"></script>
+    <script>
+        let html5QrcodeScanner;
+        let isProcessing = false;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initCameraScanner();
+        });
+
+        function initCameraScanner() {
+            // Check auth first
+            fetch('/api/auth/me').then(res => {
+                if (!res.ok) {
+                    window.location.href = '/login.html';
+                }
+            });
+
+            // Initialize scanner view
+            html5QrcodeScanner = new Html5QrcodeScanner(
+                "reader", 
+                { 
+                    fps: 10, 
+                    qrbox: { width: 250, height: 250 },
+                    aspectRatio: 1.0
+                },
+                /* verbose= */ false
+            );
+            
+            html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+        }
+
+        async function onScanSuccess(decodedText, decodedResult) {
+            if (isProcessing) return;
+            isProcessing = true;
+            
+            // Stop scanning to process result
+            if (html5QrcodeScanner) {
+                // Play feedback beep if browser allows
+                playBeep();
+            }
+
+            await verifyCode(decodedText);
+        }
+
+        function onScanFailure(error) {
+            // Silent failure, camera continues scanning
+        }
+
+        async function handleManualVerify(e) {
+            e.preventDefault();
+            if (isProcessing) return;
+            isProcessing = true;
+
+            const code = document.getElementById('manual-code').value.trim();
+            if (!code) {
+                isProcessing = false;
+                return;
+            }
+
+            await verifyCode(code);
+        }
+
+        async function verifyCode(codeToken) {
+            try {
+                const res = await fetch('/api/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ qr_code_data: codeToken })
+                });
+
+                const data = await res.json();
+                
+                // Show result panel
+                displayVerificationResult(res.status, data);
+
+            } catch (err) {
+                console.error(err);
+                showToast('Erro de ligação ao efetuar verificação.', 'error');
+                isProcessing = false;
+            }
+        }
+
+        function displayVerificationResult(statusCode, data) {
+            const container = document.getElementById('scanner-container');
+            const resultBox = document.getElementById('scanner-result');
+            const iconContainer = document.getElementById('result-icon-container');
+            const statusTitle = document.getElementById('result-status-title');
+            const statusMsg = document.getElementById('result-status-msg');
+            const detailsBox = document.getElementById('result-details');
+
+            // Hide scanner layout
+            container.style.display = 'none';
+            resultBox.style.display = 'block';
+            resultBox.className = 'glass-panel'; // Reset classes
+
+            if (statusCode === 200 && data.status === 'SUCCESS') {
+                // Approved Entrance
+                resultBox.classList.add('result-success');
+                iconContainer.innerHTML = '<i class="fa-solid fa-circle-check" style="color: var(--color-success);"></i>';
+                statusTitle.innerText = 'ENTRADA AUTORIZADA';
+                statusTitle.style.color = 'var(--color-success)';
+                statusMsg.innerText = data.message;
+                
+                detailsBox.innerHTML = `
+                    <strong>Nome:</strong> ${data.details.name}<br>
+                    <strong>Evento:</strong> ${data.details.event}<br>
+                    <strong>Hora:</strong> ${new Date().toLocaleTimeString('pt-PT')}
+                `;
+            } else if (data.status === 'ALREADY_CONSUMED') {
+                // Duplicate Entrance
+                resultBox.classList.add('result-warning');
+                iconContainer.innerHTML = '<i class="fa-solid fa-circle-exclamation" style="color: var(--color-warning);"></i>';
+                statusTitle.innerText = 'INGRESSO REPETIDO';
+                statusTitle.style.color = 'var(--color-warning)';
+                statusMsg.innerText = data.message;
+                
+                detailsBox.innerHTML = `
+                    <strong>Nome:</strong> ${data.details.name}<br>
+                    <strong>Evento:</strong> ${data.details.event}<br>
+                    <strong style="color: var(--color-danger);">Aviso: O QR Code já foi lido e não pode ser reutilizado.</strong>
+                `;
+            } else if (data.status === 'BANNED') {
+                // Banned Entrance
+                resultBox.classList.add('result-error');
+                iconContainer.innerHTML = '<i class="fa-solid fa-ban" style="color: var(--color-danger);"></i>';
+                statusTitle.innerText = 'ENTRADA BLOQUEADA';
+                statusTitle.style.color = 'var(--color-danger)';
+                statusMsg.innerText = data.message;
+                
+                detailsBox.innerHTML = `
+                    <strong>Nome:</strong> ${data.details.name}<br>
+                    <strong>Motivo:</strong> ${data.details.reason}<br>
+                    <strong style="color: var(--color-danger);">Nota: Cliente encontra-se na lista de expulsões desta produtora.</strong>
+                `;
+            } else {
+                // Invalid Ticket or unauthorized verifier
+                resultBox.classList.add('result-error');
+                iconContainer.innerHTML = '<i class="fa-solid fa-circle-xmark" style="color: var(--color-danger);"></i>';
+                statusTitle.innerText = 'INGRESSO INVÁLIDO';
+                statusTitle.style.color = 'var(--color-danger)';
+                statusMsg.innerText = data.error || data.message || 'Código inválido ou sem autorização.';
+                
+                detailsBox.innerHTML = `
+                    <strong>Token:</strong> ${document.getElementById('manual-code').value || 'Leitura de Câmara'}<br>
+                    <strong>Aviso:</strong> Este código não pertence a nenhum bilhete ou guestlist ativa para este evento, ou o operador não está autorizado.
+                `;
+            }
+        }
+
+        function resetScannerResult() {
+            document.getElementById('scanner-result').style.display = 'none';
+            document.getElementById('scanner-container').style.display = 'block';
+            document.getElementById('manual-code').value = '';
+            
+            isProcessing = false;
+        }
+
+        function playBeep() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(800, audioCtx.currentTime); // 800Hz
+                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                
+                oscillator.start();
+                oscillator.stop(audioCtx.currentTime + 0.1); // 100ms beep
+            } catch (err) {
+                // AudioContext blocked
+            }
+        }
+    </script>
+</body>
+</html>

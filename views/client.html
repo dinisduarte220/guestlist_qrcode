@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event QR GuestList - Minha Área</title>
+    <!-- Favicon -->
+    <link rel="shortcut icon" href="assets/IMG/favicon.ico" type="image/x-icon">
+    <!-- CSS Stylesheet -->
+    <link rel="stylesheet" href="style.css">
+    <!-- Icon Libraries -->
+    <script src="https://kit.fontawesome.com/207c253573.js" crossorigin="anonymous"></script>
+</head>
+<body>
+    <!-- Top Navigation Bar -->
+    <header id="topbar">
+        <img id="logo" src="./assets/IMG/logo.png" alt="logo" onclick="window.location.href='/'">
+        <nav id="topbar-nav">
+            <a href="/"><i class="fa-solid fa-house"></i> Eventos</a>
+            <a href="#" id="btn-logout" class="btn-secondary" onclick="logout(event)"><i class="fa-solid fa-right-from-bracket"></i> Sair</a>
+        </nav>
+    </header>
+
+    <main id="content">
+        <div style="margin-bottom: 2rem;">
+            <h1 id="client-greeting">Olá, Cliente!</h1>
+            <p class="subtitle" style="margin-bottom: 0;">Gere a tua carteira digital, consulta os teus ingressos e faz consumos nos eventos.</p>
+        </div>
+
+        <div class="dashboard-split">
+            <!-- Left Side: Tickets and Guestlists -->
+            <div>
+                <h2 style="margin-bottom: 1rem;"><i class="fa-solid fa-ticket" style="color: var(--color-primary); margin-right: 0.5rem;"></i> Os Meus Bilhetes</h2>
+                <div id="tickets-container" class="ticket-vault" style="margin-bottom: 3rem;">
+                    <!-- Tickets rendered here -->
+                </div>
+
+                <h2 style="margin-bottom: 1rem;"><i class="fa-solid fa-users" style="color: var(--color-primary); margin-right: 0.5rem;"></i> Minhas Inscrições em GuestLists</h2>
+                <div id="guestlists-container" class="ticket-vault">
+                    <!-- Guestlists rendered here -->
+                </div>
+            </div>
+
+            <!-- Right Side: Wallet & In-Event Purchases -->
+            <div style="display: flex; flex-direction: column; gap: 2rem;">
+                <!-- Wallet recharge panel -->
+                <div class="glass-panel">
+                    <h3 style="margin-bottom: 1rem;"><i class="fa-solid fa-wallet" style="color: var(--color-secondary);"></i> Carteira Digital</h3>
+                    <div style="font-size: 2.2rem; font-weight: 800; color: #fff; margin-bottom: 1rem;" id="wallet-balance">
+                        0.00€
+                    </div>
+                    
+                    <form id="form-recharge" onsubmit="handleRecharge(event)">
+                        <div class="form-group">
+                            <label>Carregar Saldo (Simulação)</label>
+                            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; margin-bottom: 0.8rem;">
+                                <button type="button" class="btn-secondary" style="padding: 0.5rem; justify-content: center;" onclick="setRechargeAmount(5)">+5€</button>
+                                <button type="button" class="btn-secondary" style="padding: 0.5rem; justify-content: center;" onclick="setRechargeAmount(10)">+10€</button>
+                                <button type="button" class="btn-secondary" style="padding: 0.5rem; justify-content: center;" onclick="setRechargeAmount(20)">+20€</button>
+                                <button type="button" class="btn-secondary" style="padding: 0.5rem; justify-content: center;" onclick="setRechargeAmount(50)">+50€</button>
+                            </div>
+                            <input type="number" id="recharge-amount" class="input-field" style="padding-left: 1rem;" required min="1" step="0.5" placeholder="Valor customizado (EUR)">
+                        </div>
+                        <button type="submit" class="btn-primary" style="width: 100%; justify-content: center;">
+                            <i class="fa-solid fa-credit-card"></i> Carregar Carteira
+                        </button>
+                    </form>
+                </div>
+
+                <!-- In-Event Payments / Buy Drink -->
+                <div class="glass-panel" id="bar-panel" style="display: none;">
+                    <h3 style="margin-bottom: 0.5rem;"><i class="fa-solid fa-glass-water" style="color: var(--color-accent);"></i> Bar Digital do Evento</h3>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">Usa o teu saldo para comprar bebidas diretamente no recinto!</p>
+                    
+                    <div class="form-group">
+                        <label for="select-bar-event">Seleciona o Evento:</label>
+                        <select id="select-bar-event" class="select-field" style="width: 100%;" onchange="loadEventProducts()">
+                            <!-- Populated with events client has ticket for -->
+                        </select>
+                    </div>
+
+                    <div id="products-list" style="display: flex; flex-direction: column; gap: 0.8rem;">
+                        <!-- Products rendered here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="toast">
+        <span id="toast-icon"></span>
+        <span id="toast-message">Notification message</span>
+    </div>
+
+    <!-- Frontend Core Scripts -->
+    <script src="script.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            loadClientArea();
+        });
+
+        let ticketedEvents = []; // tracks events for which user has tickets
+
+        async function loadClientArea() {
+            try {
+                const res = await fetch('/api/tickets/my');
+                if (!res.ok) {
+                    if (res.status === 401) {
+                        window.location.href = '/login.html';
+                        return;
+                    }
+                    showToast('Erro ao carregar dados do cliente.', 'error');
+                    return;
+                }
+
+                const data = await res.json();
+                
+                // Set greeting name
+                const user = JSON.parse(localStorage.getItem('user'));
+                if (user) {
+                    document.getElementById('client-greeting').innerText = `Olá, ${user.name}!`;
+                }
+
+                // Update Wallet
+                document.getElementById('wallet-balance').innerText = `${parseFloat(data.wallet_balance).toFixed(2)}€`;
+
+                // Render Tickets
+                const tContainer = document.getElementById('tickets-container');
+                tContainer.innerHTML = '';
+                ticketedEvents = [];
+
+                if (data.tickets.length === 0) {
+                    tContainer.innerHTML = `<p style="color: var(--text-muted); grid-column: 1/-1;">Não tens bilhetes ativos.</p>`;
+                } else {
+                    data.tickets.forEach(tk => {
+                        const dateStr = new Date(tk.date).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+                        
+                        // Keep track of events for bar purchases
+                        if (tk.status === 'Valid' && !ticketedEvents.some(e => e.id === tk.event_id)) {
+                            ticketedEvents.push({ id: tk.event_id, title: tk.title });
+                        }
+
+                        tContainer.innerHTML += `
+                            <div class="ticket-pass">
+                                <div class="ticket-pass-header">
+                                    <span style="font-weight: 700;">${tk.title}</span>
+                                    <span class="badge ${tk.status === 'Valid' ? 'badge-valid' : 'badge-consumed'}">${tk.status}</span>
+                                </div>
+                                <div class="ticket-pass-body">
+                                    <div class="qr-image-wrapper">
+                                        <img src="${tk.qrCodeDataUrl}" alt="QR Ticket">
+                                    </div>
+                                    <p style="font-size: 0.9rem; color: #fff; font-weight: 600;"><i class="fa-solid fa-location-dot"></i> ${tk.location}</p>
+                                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem;"><i class="fa-regular fa-calendar"></i> ${dateStr}</p>
+                                </div>
+                                <div class="ticket-pass-footer">
+                                    Cód: ${tk.qr_code_data}
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+
+                // Render Guestlists
+                const glContainer = document.getElementById('guestlists-container');
+                glContainer.innerHTML = '';
+                if (data.guestlists.length === 0) {
+                    glContainer.innerHTML = `<p style="color: var(--text-muted); grid-column: 1/-1;">Não estás inscrito em nenhuma GuestList.</p>`;
+                } else {
+                    data.guestlists.forEach(gl => {
+                        const dateStr = new Date(gl.date).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+                        glContainer.innerHTML += `
+                            <div class="ticket-pass">
+                                <div class="ticket-pass-header">
+                                    <span style="font-weight: 700;">${gl.title}</span>
+                                    <span class="badge ${gl.status === 'Valid' ? 'badge-valid' : 'badge-consumed'}">${gl.status}</span>
+                                </div>
+                                <div class="ticket-pass-body">
+                                    <div style="font-size: 0.95rem; font-weight:700; color:var(--color-primary-hover); margin-bottom: 0.3rem;">${gl.guestlist_name}</div>
+                                    <div class="qr-image-wrapper">
+                                        <img src="${gl.qrCodeDataUrl}" alt="QR GuestList">
+                                    </div>
+                                    <p style="font-size: 0.8rem; color: var(--text-muted); padding: 0 0.5rem; max-height: 50px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
+                                        <strong>Condições:</strong> ${gl.conditions}
+                                    </p>
+                                </div>
+                                <div class="ticket-pass-footer">
+                                    Cód: ${gl.qr_code_data}
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+
+                // Setup Bar Panel if there are valid ticketed events
+                setupBarPanel();
+
+            } catch (err) {
+                console.error(err);
+                showToast('Erro de ligação ao carregar área do cliente.', 'error');
+            }
+        }
+
+        function setRechargeAmount(val) {
+            document.getElementById('recharge-amount').value = val;
+        }
+
+        async function handleRecharge(e) {
+            e.preventDefault();
+            const amount = parseFloat(document.getElementById('recharge-amount').value);
+
+            try {
+                const res = await fetch('/api/wallet/recharge', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ amount })
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    showToast(data.error || 'Erro ao carregar saldo', 'error');
+                } else {
+                    showToast(`Carteira carregada com +${amount.toFixed(2)}€!`, 'success');
+                    document.getElementById('recharge-amount').value = '';
+                    loadClientArea();
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('Erro de ligação ao servidor.', 'error');
+            }
+        }
+
+        function setupBarPanel() {
+            const barPanel = document.getElementById('bar-panel');
+            const selectEvent = document.getElementById('select-bar-event');
+            
+            if (ticketedEvents.length === 0) {
+                barPanel.style.display = 'none';
+                return;
+            }
+
+            barPanel.style.display = 'block';
+            
+            // Populate select dropdown
+            const currentSelected = selectEvent.value;
+            selectEvent.innerHTML = '<option value="">-- Escolhe um Evento --</option>';
+            ticketedEvents.forEach(evt => {
+                selectEvent.innerHTML += `<option value="${evt.id}">${evt.title}</option>`;
+            });
+
+            if (currentSelected && ticketedEvents.some(e => e.id == currentSelected)) {
+                selectEvent.value = currentSelected;
+                loadEventProducts();
+            }
+        }
+
+        async function loadEventProducts() {
+            const eventId = document.getElementById('select-bar-event').value;
+            const plist = document.getElementById('products-list');
+            plist.innerHTML = '';
+
+            if (!eventId) return;
+
+            try {
+                const res = await fetch(`/api/events/${eventId}/products`);
+                if (!res.ok) throw new Error();
+                const products = await res.json();
+
+                if (products.length === 0) {
+                    plist.innerHTML = '<p style="color: var(--text-muted); font-size: 0.9rem;">Não existem produtos registados para o bar deste evento.</p>';
+                    return;
+                }
+
+                products.forEach(p => {
+                    plist.innerHTML += `
+                        <div class="glass-panel" style="padding: 0.8rem 1rem; display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); margin: 0;">
+                            <div>
+                                <div style="font-weight:600; color:#fff;">${p.name}</div>
+                                <div style="font-size:0.9rem; color:var(--color-accent); font-weight:700;">${parseFloat(p.price).toFixed(2)}€</div>
+                            </div>
+                            <button class="btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;" onclick="buyProduct(${eventId}, ${p.id}, '${p.name}')">
+                                <i class="fa-solid fa-shopping-cart"></i> Comprar
+                            </button>
+                        </div>
+                    `;
+                });
+
+            } catch (err) {
+                console.error(err);
+                plist.innerHTML = '<p style="color: var(--color-danger); font-size: 0.9rem;">Erro ao carregar produtos.</p>';
+            }
+        }
+
+        async function buyProduct(eventId, productId, productName) {
+            if (!confirm(`Confirmas a compra de "${productName}"? O valor será debitado da tua carteira.`)) {
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/events/${eventId}/purchase-product`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ productId })
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    showToast(data.error || 'Erro ao comprar produto.', 'error');
+                } else {
+                    showToast(data.message, 'success');
+                    loadClientArea(); // Refresh balance & view
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('Erro ao ligar ao servidor.', 'error');
+            }
+        }
+    </script>
+</body>
+</html>
