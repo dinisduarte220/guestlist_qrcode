@@ -940,3 +940,7 @@ app.post('/api/verify', requireAuth(['producer', 'staff']), async (req, res) => 
 app.listen(PORT, () => {
   console.log(`\nSERVER CONNECTION: ✅\n\nhttp://localhost:${PORT}\n`);
 });
+
+console.log("DATABASE_URL:", process.env.DATABASE_URL);
+console.log("SUPABASE_URL:", process.env.SUPABASE_URL);
+console.log("SUPABASE_KEY exists:", !!process.env.SUPABASE_KEY);
